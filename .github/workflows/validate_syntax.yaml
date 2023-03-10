@@ -55,3 +55,37 @@ jobs:
             -s jsonschema/workflows.json \
             -d ${{ matrix.sample }}
 
+  test-cases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+
+      - name: Set up tooling
+        run: npm install -g ajv-cli ajv-formats
+
+      - name: Run test cases
+        run: |
+          for src in $(find jsonschema/tests/ -type f); do
+            test=$(ajv validate -c ajv-formats --spec=draft2019 \
+              -s jsonschema/workflows.json \
+              -d $src)
+
+            if [[ $? -ne 1 ]]; then
+              echo "$src did not fail as expected!" | tee -a /workspace/failures.txt
+              echo $test | tee -a /workspace/failures.txt
+              echo ""
+            fi
+          done
+
+      - name: Check for failures
+        run: |
+          if [ -f /workspace/failures.txt ]; then
+              echo "Tests FAILED!"
+              exit 1
+          else 
+              echo "Tests PASSED!"
+          fi
